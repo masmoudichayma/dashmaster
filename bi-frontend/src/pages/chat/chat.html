@@ -1,0 +1,321 @@
+<div class="app-layout">
+  <header class="app-header">
+    <div class="header-left">
+      <h1 class="app-title">🤖 AI MDX Generator</h1>
+    </div>
+
+    <div class="header-center">
+      <div class="server-form">
+        <input type="text" [(ngModel)]="serverName" placeholder="Server (localhost)" class="server-input" (keyup.enter)="connectToServer()" />
+        <input type="number" [(ngModel)]="serverPort" placeholder="Port" class="port-input" (keyup.enter)="connectToServer()" />
+        <button (click)="connectToServer()" [disabled]="isConnecting" class="connect-btn">
+          <span *ngIf="!isConnecting">🔌 Connect</span>
+          <span *ngIf="isConnecting">⏳...</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="status-badge" [class.connected]="isConnected || databases.length > 0">
+        <span class="status-dot"></span>
+        <span>{{ (isConnected || databases.length > 0) ? 'Connected' : 'Disconnected' }}</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="main-content">
+    <!-- COLONNE GAUCHE - Databases & Cubes -->
+    <aside class="left-panel">
+
+      <!-- SECTION 1: Bases de données -->
+      <section class="databases-section">
+        <div class="section-header">
+          <h3>💾 BASES DE DONNÉES</h3>
+          <span class="count-badge">{{ databases.length }}</span>
+        </div>
+
+        <div class="databases-list" *ngIf="databases.length > 0">
+          <div
+            *ngFor="let db of databases"
+            class="db-item"
+            [class.selected]="selectedDatabase?.name === db.name"
+            (click)="selectDatabase(db)"
+          >
+            <div class="db-icon">🗄️</div>
+            <div class="db-info">
+              <div class="db-name">{{ db.name }}</div>
+              <div class="db-count">
+                {{ db.cubeCount !== undefined ? db.cubeCount : (db.cubes?.length || 0) }} cubes
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="empty-state" *ngIf="databases.length === 0 && isConnected">
+          <p>📂 No databases</p>
+        </div>
+
+        <div class="empty-state" *ngIf="!isConnected">
+          <p>🔌 Connect to server first</p>
+        </div>
+      </section>
+
+      <!-- SECTION 2: Cubes -->
+      <section class="cubes-section" *ngIf="selectedDatabase">
+        <div class="section-header">
+          <h3>🧊 CUBES</h3>
+          <span class="count-badge">{{ cubes.length }}</span>
+        </div>
+
+        <div class="cubes-list" *ngIf="cubes.length > 0">
+          <div
+            *ngFor="let cube of cubes"
+            class="cube-item"
+            [class.selected]="selectedCube?.name === cube.name"
+            (click)="selectCube(cube)"
+          >
+            <div class="cube-icon">📦</div>
+            <div class="cube-name">{{ cube.name }}</div>
+          </div>
+        </div>
+
+        <div class="empty-state" *ngIf="cubes.length === 0">
+          <p>📦 No cubes in this database</p>
+        </div>
+      </section>
+
+    </aside>
+
+    <!-- COLONNE MILIEU - Cube Details -->
+    <section class="middle-panel">
+      <div class="panel-header">
+        <h2>📊 CUBE DETAILS</h2>
+        <span *ngIf="selectedCube" class="cube-name-badge">{{ selectedCube.name }}</span>
+      </div>
+
+      <div class="cube-schema" *ngIf="cubeSchema">
+        <!-- MEASURES -->
+        <div class="schema-block measures-block">
+          <div class="block-header">
+            <h3>📏 MEASURES</h3>
+            <span class="count-badge">{{ cubeSchema.measures?.length || 0 }}</span>
+          </div>
+          <div class="schema-table">
+            <table *ngIf="cubeSchema.measures && cubeSchema.measures.length > 0">
+              <thead>
+                <tr>
+                  <th>Column</th>
+                  <th>Type</th>
+                  <th>Aggregation</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let measure of cubeSchema.measures">
+                  <td class="col-name">{{ measure.name }}</td>
+                  <td class="col-type">{{ measure.dataType || 'number' }}</td>
+                  <td><span class="badge-agg">{{ measure.aggregationType || 'Sum' }}</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <p *ngIf="!cubeSchema.measures || cubeSchema.measures.length === 0" class="no-data-msg">No measures found.</p>
+          </div>
+        </div>
+
+        <!-- DIMENSIONS -->
+        <div class="schema-block dimensions-block">
+          <div class="block-header">
+            <h3>📐 DIMENSIONS</h3>
+            <span class="count-badge">{{ cubeSchema.dimensions?.length || 0 }}</span>
+          </div>
+
+          <div class="dimensions-grid" *ngIf="cubeSchema.dimensions && cubeSchema.dimensions.length > 0">
+            <div *ngFor="let dimension of cubeSchema.dimensions" class="dimension-card">
+              
+              <!-- Header de la dimension -->
+              <div class="dimension-header">
+                <div class="dimension-icon">
+                  {{ dimension.type === 'Time' ? '📅' : '📊' }}
+                </div>
+                <div class="dimension-name">{{ dimension.name }}</div>
+                <div class="dimension-type-badge">{{ dimension.type }}</div>
+              </div>
+
+              <!-- Body avec détails -->
+              <div class="dimension-body">
+                
+                <!-- Hiérarchies -->
+                <div class="hierarchies" *ngIf="dimension.hierarchies && dimension.hierarchies.length > 0">
+                  <div class="hierarchies-header">
+                    🔗 Hiérarchies ({{ dimension.hierarchies.length }})
+                  </div>
+                  <div *ngFor="let hierarchy of dimension.hierarchies" class="hierarchy-item">
+                    <div class="hierarchy-name">{{ hierarchy.name }}</div>
+                    
+                    <!-- Niveaux de la hiérarchie -->
+                    <div class="hierarchy-levels" *ngIf="hierarchy.levels && hierarchy.levels.length > 0">
+                      <div class="level-chain">
+                        <span *ngFor="let level of hierarchy.levels; let last = last">
+                          <span class="level-name">{{ level.name }}</span>
+                          <span *ngIf="!last" class="level-arrow">→</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Attributs -->
+                <div class="attributes" *ngIf="dimension.attributes && dimension.attributes.length > 0">
+                  <div class="attributes-header">
+                    🏷️ Attributs ({{ dimension.attributes.length }})
+                  </div>
+                  <div class="attributes-list">
+                    <span *ngFor="let attr of dimension.attributes" class="attribute-tag">
+                      {{ attr.name }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Si pas de hiérarchies ni attributs -->
+                <div class="no-hierarchy" *ngIf="(!dimension.hierarchies || dimension.hierarchies.length === 0) && (!dimension.attributes || dimension.attributes.length === 0)">
+                  <p>Aucune hiérarchie définie</p>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <p *ngIf="!cubeSchema.dimensions || cubeSchema.dimensions.length === 0" class="no-data-msg">
+            No dimensions found.
+          </p>
+        </div>
+      </div>
+
+      <div class="empty-state-center" *ngIf="!cubeSchema">
+        <div class="empty-icon">📦</div>
+        <h3>No Cube Selected</h3>
+        <p>Select a cube from the left panel to view its schema details</p>
+      </div>
+    </section>
+
+    <!-- COLONNE DROITE - Chatbot avec TABS -->
+    <aside class="right-panel">
+      
+      <!-- TABS : Chat / Historique -->
+      <div class="tabs-header">
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab === 'chat'"
+          (click)="activeTab = 'chat'"
+        >
+          💬 Chat
+        </button>
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab === 'history'"
+          (click)="activeTab = 'history'"
+        >
+          📚 Historique
+        </button>
+      </div>
+
+      <!-- TAB CONTENT : CHAT -->
+      <div class="tab-content" *ngIf="activeTab === 'chat'">
+        
+        <div class="panel-header">
+          <h3>💬 CHATBOT AI</h3>
+          <button *ngIf="messages.length > 0" (click)="clearChat()" class="clear-btn">🗑️</button>
+        </div>
+
+        <!-- Messages -->
+        <div class="chat-messages" #chatContainer>
+          <div *ngFor="let msg of messages; trackBy: trackByMessage" class="message" [class.user]="msg.sender === 'user'" [class.bot]="msg.sender === 'bot'">
+            <div class="message-avatar"><span>{{ msg.sender === 'user' ? '👤' : '🤖' }}</span></div>
+            <div class="message-content">
+              <div class="message-text">{{ msg.text }}</div>
+              <div class="mdx-block" *ngIf="msg.metadata?.mdx">
+                <div class="mdx-header">
+                  <span>📝 MDX Query</span>
+                  <button (click)="copyMDX(msg.metadata?.mdx || '')" class="copy-btn">📋</button>
+                </div>
+                <pre><code>{{ msg.metadata?.mdx }}</code></pre>
+              </div>
+              <div class="message-time">{{ msg.timestamp | date:'HH:mm' }}</div>
+            </div>
+          </div>
+
+          <div class="message bot" *ngIf="isLoading">
+            <div class="message-avatar">🤖</div>
+            <div class="message-content">
+              <div class="typing-indicator"><span></span><span></span><span></span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Input -->
+        <div class="chat-input-wrapper">
+          <textarea
+            [(ngModel)]="userInput"
+            placeholder="Ask your question..."
+            (keydown)="onEnterPress($event)"
+            [disabled]="isLoading || !selectedCube"
+            rows="3"
+          ></textarea>
+          <button
+            (click)="sendMessage()"
+            [disabled]="!userInput.trim() || isLoading || !selectedCube"
+            class="send-btn"
+          >
+            🚀
+          </button>
+        </div>
+        
+        <div class="chat-warning" *ngIf="!selectedCube">⚠️ Select a cube first to start chatting</div>
+      
+      </div>
+
+      <!-- TAB CONTENT : HISTORIQUE -->
+      <div class="tab-content" *ngIf="activeTab === 'history'">
+        
+        <div class="panel-header">
+          <h3>📚 HISTORIQUE</h3>
+          <span class="count-badge">{{ (conversations$ | async)?.length || 0 }}</span>
+        </div>
+
+        <div class="history-list">
+          <div 
+            *ngFor="let conv of conversations$ | async"
+            class="history-item"
+            (click)="loadConversation(conv.id)"
+          >
+            <div class="history-header">
+              <div class="history-title">{{ conv.title }}</div>
+              <button 
+                class="delete-conv-btn"
+                (click)="deleteConversation(conv.id, $event)"
+                title="Supprimer"
+              >
+                🗑️
+              </button>
+            </div>
+            <div class="history-meta">
+              <span class="history-cube">📦 {{ conv.cubeName }}</span>
+              <span class="history-count">{{ conv.messageCount }} messages</span>
+            </div>
+            <div class="history-date">
+              {{ conv.timestamp | date:'dd/MM/yyyy HH:mm' }}
+            </div>
+          </div>
+
+          <div class="empty-history" *ngIf="(conversations$ | async)?.length === 0">
+            <div class="empty-icon">📭</div>
+            <p>Aucune conversation sauvegardée</p>
+            <p class="empty-hint">Vos conversations seront enregistrées automatiquement</p>
+          </div>
+        </div>
+
+      </div>
+
+    </aside>
+
+  </div>
+</div>
