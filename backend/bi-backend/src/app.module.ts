@@ -1,22 +1,15 @@
 import { Module } from '@nestjs/common';
+import { SsasModule } from './ssas/ssas.module';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 import { AiController } from './ai.controller';
 import { AiService } from './ai.service';
-import { MdxAgentService } from './mdx-agent.service';
-import { SsasController } from './ssas/ssas.controller'; // Vérifie le chemin
-import { SsasService } from './ssas/ssas.service';       // Vérifie le chemin
-import { SsasPowershellService } from './ssas/ssas-powershell.service'; // <--- AJOUTE CECI !
+import { MdxBuilderService } from './mdx-builder.service';
 
 @Module({
-  imports: [],
-  controllers: [
-    AiController, 
-    SsasController
-  ],
-  providers: [
-    AiService,
-    MdxAgentService,
-    SsasService,
-    SsasPowershellService // <--- AJOUTE CECI AUSSI !
-  ],
+  imports: [SsasModule],
+  controllers: [AppController, AiController],
+  providers: [AppService, AiService, MdxBuilderService],
+  exports: [AiService, MdxBuilderService],
 })
 export class AppModule {}

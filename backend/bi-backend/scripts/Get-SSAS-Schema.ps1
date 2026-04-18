@@ -20,7 +20,7 @@ try {
         throw "Cube '$CubeName' not found in database '$DatabaseName'"
     }
     
-    # Récupérer les measures
+    # Récupérer les measures avec DESCRIPTIONS
     $measures = @()
     foreach ($measureGroup in $cube.MeasureGroups) {
         foreach ($measure in $measureGroup.Measures) {
@@ -29,16 +29,16 @@ try {
                 dataType = $measure.DataType.ToString()
                 aggregationType = $measure.AggregateFunction.ToString()
                 format = if ($measure.FormatString) { $measure.FormatString } else { "" }
+                description = if ($measure.Description) { $measure.Description } else { "Pas de description disponible" }
             }
         }
     }
     
-    # Récupérer les dimensions
+    # Récupérer les dimensions avec DESCRIPTIONS
     $dimensions = @()
     foreach ($cubeDim in $cube.Dimensions) {
         $hierarchies = @()
         
-        # Parcourir les hiérarchies
         foreach ($attr in $cubeDim.Attributes) {
             if ($attr.AttributeHierarchyEnabled) {
                 $levels = @()
@@ -59,29 +59,34 @@ try {
             type = if ($cubeDim.Dimension.Type -eq [Microsoft.AnalysisServices.DimensionType]::Time) { "Time" } else { "Standard" }
             hierarchies = $hierarchies
             attributes = @()
+            description = if ($cubeDim.Description) { $cubeDim.Description } else { "Pas de description disponible" }
         }
     }
     
     $server.Disconnect()
     
-    # Créer l'objet schéma
+    # Créer l'objet schéma COMPLET
     $schema = @{
         cubeName = $CubeName
+        description = if ($cube.Description) { $cube.Description } else { "Cube OLAP pour l'analyse BI" }
         measures = $measures
         dimensions = $dimensions
+        measureGroupCount = $cube.MeasureGroups.Count
+        dimensionCount = $cube.Dimensions.Count
     }
     
-    # Retourner en JSON avec profondeur suffisante
     Write-Output ($schema | ConvertTo-Json -Depth 10 -Compress)
     
 } catch {
     Write-Error $_.Exception.Message
     
-    # Retourner schéma vide en cas d'erreur
     $emptySchema = @{
         cubeName = $CubeName
+        description = "Erreur de chargement"
         measures = @()
         dimensions = @()
+        measureGroupCount = 0
+        dimensionCount = 0
     }
     Write-Output ($emptySchema | ConvertTo-Json -Compress)
 }

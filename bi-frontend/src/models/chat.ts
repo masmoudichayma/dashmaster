@@ -1,3 +1,5 @@
+// src/models/chat.ts
+
 export interface Message {
   id?: string;
   text: string;
@@ -7,12 +9,14 @@ export interface Message {
     parsed?: any;
     mdx?: string;
     confidence?: number;
+    chartType?: string;
   };
 }
 
 export interface ChatResponse {
   reply: string;
-  mdx?: string;
+  mdx: string;
+  chartType?: string;
   parsed?: any;
   recommendations?: any[];
 }
@@ -26,11 +30,7 @@ export interface SSASConnection {
 export interface Database {
   name: string;
   cubes?: Cube[];
-}
-export interface Database {
-  name: string;
-  cubes?: Cube[];
-  cubeCount?: number;  // ← AJOUT ICI
+  cubeCount?: number;
 }
 
 export interface Cube {
@@ -44,12 +44,12 @@ export interface CubeSchema {
   dimensions: Dimension[];
 }
 
-
 export interface Measure {
   name: string;
   dataType?: string;
   aggregationType: string;
   format?: string;
+  description?: string; // ← AJOUTÉ
 }
 
 export interface Dimension {
@@ -73,6 +73,7 @@ export interface Attribute {
   name: string;
   type?: string;
 }
+
 export interface Conversation {
   id: string;
   title: string;
@@ -88,4 +89,22 @@ export interface ConversationSummary {
   cubeName: string;
   timestamp: Date;
   messageCount: number;
+}
+
+// ← AJOUTÉ : Interface pour le diagramme du cube
+export interface CubeDiagram {
+  cubeName: string;
+  structure: 'star' | 'snowflake';
+  factTable: {
+    name: string;
+    measureGroups: string[];
+    foreignKeys?: string[];
+  };
+  dimensionTables: {
+    name: string;
+    type?: string;
+    primaryKey?: string;
+    foreignKey?: string;
+    attributes?: string[];
+  }[];
 }

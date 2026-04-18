@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Query } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, HttpException, HttpStatus } from '@nestjs/common';
 import { SsasService } from './ssas.service';
 
 @Controller('ssas')
@@ -39,6 +39,16 @@ export class SsasController {
     return this.ssasService.getCubeSchema(serverName, databaseName, cubeName);
   }
 
+  // --- NOUVELLE ROUTE POUR LE DIAGRAMME ---
+  @Get('cube-diagram')
+  async getCubeDiagram(
+    @Query('serverName') serverName: string,
+    @Query('databaseName') databaseName: string,
+    @Query('cubeName') cubeName: string,
+  ) {
+    return this.ssasService.getCubeDiagram(serverName, databaseName, cubeName);
+  }
+  
   @Post('execute-mdx')
   async executeMDX(
     @Body()
